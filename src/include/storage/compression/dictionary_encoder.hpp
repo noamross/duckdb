@@ -24,7 +24,7 @@ public:
 
 	vector<DataChunk> decode(const EncodedBlock block) = 0;
 
-	unique_ptr<BaseEncoder> getEncoder() const = 0;
+	unique_ptr<BaseEncoder> getEncoder();
 };
 
 } // namespace duckdb

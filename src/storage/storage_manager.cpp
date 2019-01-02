@@ -286,8 +286,116 @@ void StorageManager::CreateCheckpoint(int iteration) {
 	transaction->Rollback();
 }
 
-void StorageManager::BuildDataBlocks() {
+void StorageManager::CreatePersistentStorage(int iteration) {
+	auto transaction = database.transaction_manager.StartTransaction();
+	assert(iteration == 0 || iteration == 1);
+	auto storage_path_base = JoinPath(path, STORAGE_FILES[iteration]);
+	if (DirectoryExists(storage_path_base)) {
+		// have a leftover directory
+		// remove it
+		RemoveDirectory(storage_path_base);
+	}
+	// create the directory
+	CreateDirectory(storage_path_base);
 
-	// First we have to define how many chuncks we fit in a block
+	// first we have to access the schemas
+	auto schema_path = JoinPath(storage_path_base, SCHEMA_FILE);
+
+	auto schema_file = FstreamUtil::OpenFile(schema_path, ios_base::out);
+
+	vector<SchemaCatalogEntry *> schemas;
+	// scan the schemas and write them to the schemas.csv file
+	database.catalog.schemas.Scan(*transaction, [&](CatalogEntry *entry) {
+		schema_file << entry->name << '\n';
+		schemas.push_back((SchemaCatalogEntry *)entry);
+	});
+	FstreamUtil::CloseFile(schema_file);
+
+	// now for each schema create a directory
+	for (auto &schema : schemas) {
+		// FIXME: schemas can have unicode, do something for file systems, maybe hash?
+		auto schema_directory_path = JoinPath(storage_path_base, schema->name);
+		assert(!DirectoryExists(schema_directory_path));
+		// create the directory
+		CreateDirectory(schema_directory_path);
+		// create the file holding the list of tables for the schema
+		auto table_list_path = JoinPath(schema_directory_path, TABLE_LIST_FILE);
+		auto table_list_file = FstreamUtil::OpenFile(table_list_path, ios_base::out);
+
+		// create the list of tables for the schema
+		vector<TableCatalogEntry *> tables;
+		schema->tables.Scan(*transaction, [&](CatalogEntry *entry) {
+			table_list_file << entry->name << '\n';
+			tables.push_back((TableCatalogEntry *)entry);
+		});
+		FstreamUtil::CloseFile(table_list_file);
+
+		// now for each table, write the column meta information and the actual data
+		for (auto &table : tables) {
+			// first create a directory for the table information
+			// FIXME: same problem as schemas, unicode and file systems may not agree
+			auto table_directory_path = JoinPath(schema_directory_path, table->name);
+			assert(!DirectoryExists(table_directory_path));
+			// create the directory
+			CreateDirectory(table_directory_path);
+
+			auto table_meta_name = JoinPath(table_directory_path, TABLE_FILE);
+			auto table_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::out);
+
+			// serialize the table information to a file
+			Serializer serializer;
+			table->Serialize(serializer);
+			auto serilized_data = serializer.GetData();
+			table_file.write((char *)serilized_data.data.get(), serilized_data.size);
+			FstreamUtil::CloseFile(table_file);
+
+			// now we have to write the actual binary
+			// we do this by performing a scan of the table
+
+			// First, we create an object reponsible to create DataBlocks
+			DataBlock::Builder builder;
+			// Then, we build a Data block object using the table information
+			DataBlock dataBlock = builder.Build(table->storage->tuple_size);
+			// and we define a buffer to store the data
+			char buffer[max_block_size];
+
+			// now we initialize the scan
+			ScanStructure ss;
+			table->storage->InitializeScan(ss);
+			// storing the column sizes
+			vector<column_t> column_ids;
+			for (size_t i = 0; i < table->columns.size(); i++) {
+				column_ids.push_back(i);
+			}
+			// and columnt types
+			DataChunk chunk;
+			auto types = table->GetTypes();
+			chunk.Initialize(types);
+			size_t chunk_count = 1;
+			// Then we iterate over the data to build the dataBlocks
+			while (true) {
+				chunk.Reset();
+				// we scan the chunk
+				table->storage->Scan(*transaction, chunk, column_ids, ss);
+				if (chunk.size() == 0) {
+					// chunk does not have data
+					break;
+				}
+
+				// Now we can store the data chunk at a time
+				if (!dataBlock.is_full) {
+					// While DataBlock has space we append data
+					dataBlock.Append(buffer, chunk);
+				} else {
+					// When the Data Block is full we flush it to disk
+					dataBlock.FlushOnDisk(buffer, table_directory_path, builder.GetBlockCount());
+					// And create a new Data Block for the remaining data
+					dataBlock = builder.Build(table->storage->tuple_size);
+				}
+
+				chunk_count++;
+			}
+		}
+	}
 	// We need #tuples, #columns and data type to calculate the size of a block
 }

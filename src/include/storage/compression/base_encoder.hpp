@@ -18,10 +18,10 @@ class DataChunk;
 class BaseEncoder {
 public:
 	virtual ~BaseEncoder() = default;
-	//! Encodes a set of chucks into and encoded block
-	virtual std::unique_ptr<const EncodedBlock> encode(const std::vector<DataChunk> &chunks) = 0;
+	//! Encodes a set of chunks into an encoded block
+	virtual std::unique_ptr<const EncodedBlock> encode(const std::vector<DataChunk> &chunks);
 
-	virtual std::vector<DataChunk> decode(const EncodedBlock block) = 0;
+	virtual std::vector<DataChunk> decode(const EncodedBlock block);
 
 	virtual std::unique_ptr<BaseEncoder> getEncoder() const = 0;
 };

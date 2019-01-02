@@ -9,6 +9,7 @@
 #pragma once
 
 #include "common/helper.hpp"
+#include "storage/data_block.hpp"
 #include "storage/data_table.hpp"
 #include "storage/write_ahead_log.hpp"
 
@@ -40,8 +41,8 @@ private:
 	//! Checkpoint the current state of the WAL and flush it to the main storage. This should be called BEFORE any
 	//! connction is available because right now the checkpointing cannot be done online. (TODO)
 	void CreateCheckpoint(int iteration);
-	//! Builds the data blocks for physical storage
-	void BuildDataBlocks();
+	//! Creates and stores the data blocks for physical storage
+	void CreatePersistentStorage(int iteration);
 
 	//! The path of the database
 	string path;
@@ -49,6 +50,7 @@ private:
 	DuckDB &database;
 	//! The WriteAheadLog of the storage manager
 	WriteAheadLog wal;
+	//! The id of the last block TODO:
 };
 
 } // namespace duckdb
