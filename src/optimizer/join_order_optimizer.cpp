@@ -235,11 +235,10 @@ bool JoinOrderOptimizer::ExtractJoinRelations(LogicalOperator &input_op, vector<
 		}
 		op = op->children[0].get();
 	}
-	if (op->type == LogicalOperatorType::UNION ||
-	    op->type == LogicalOperatorType::EXCEPT ||
-		op->type == LogicalOperatorType::INTERSECT) {
+	if (op->type == LogicalOperatorType::UNION || op->type == LogicalOperatorType::EXCEPT ||
+	    op->type == LogicalOperatorType::INTERSECT) {
 		// set operation, optimize separately in children
-		for(size_t i = 0; i < op->children.size(); i++) {
+		for (size_t i = 0; i < op->children.size(); i++) {
 			JoinOrderOptimizer optimizer;
 			op->children[i] = optimizer.Optimize(move(op->children[i]));
 		}
