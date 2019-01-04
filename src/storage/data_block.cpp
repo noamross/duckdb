@@ -4,14 +4,17 @@
 using namespace duckdb;
 using namespace std;
 
-void DataBlock::Append(char *buffer, DataChunk &chunk) {
-	int i = 0;
+void DataBlock::Append(DataChunk &chunk) {
+	char *dataptr = data_buffer.get();
 	// write the data
 	for (size_t i = 0; i < chunk.column_count; i++) {
 		auto type = chunk.data[i].type;
 		if (TypeIsConstantSize(type)) {
 			// constant size type: simple memcpy
-			VectorOperations::CopyToStorage(chunk.data[i], buffer, offset);
+			// VectorOperations::CopyToStorage(chunk.data[i], data_buffer, offset); TODO: Vector primitive for copy
+			auto data_length = (sizeof(type) * chunk.size());
+			memcpy(dataptr + offset, &chunk.data[i].data, data_length);
+			offset += data_length;
 		} else {
 			assert(type == TypeId::VARCHAR);
 			// strings are inlined into the block
@@ -20,11 +23,12 @@ void DataBlock::Append(char *buffer, DataChunk &chunk) {
 			for (size_t j = 0; j < chunk.size(); j++) {
 				auto source = strings[j] ? strings[j] : NullValue<const char *>();
 				string str(source);
-				memcpy(buffer + offset, &source[0], str.size());
+				memcpy(dataptr + offset, &source[0], str.size());
 				offset += str.size();
 			}
 		}
-		offset += sizeof(type);
+		// we need to store the offset for each column data inside the header
+		header.data_offset.push_back(offset);
 	}
 
 	header.amount_of_tuples += chunk.size();
@@ -32,28 +36,34 @@ void DataBlock::Append(char *buffer, DataChunk &chunk) {
 	if (offset + (sizeof(int) * chunk.size()) >= max_block_size) {
 		// we can't fit any more elements
 		// first write the header
+		// the data size is the offset without the header
 		header.data_size = offset - sizeof(DataBlockHeader);
-		memcpy(buffer, &header, sizeof(DataBlockHeader));
+		// now we copy the header to our buffer
+		memcpy(dataptr, &header, sizeof(DataBlockHeader));
 
-		// create new block
+		// then we set the block as full to a create new block in the next iteration
 		is_full = true;
 	}
 }
 
-void DataBlock::FlushOnDisk(char *buffer, string &path_to_file, size_t block_id) {
+void DataBlock::FlushOnDisk(string &path_to_file, size_t block_id) {
 
 	auto block_name = JoinPath(path_to_file, to_string(block_id) + ".duck");
 	auto block_file = FstreamUtil::OpenFile(block_name, ios_base::binary | ios_base::out);
-	block_file.write(buffer, offset);
+	block_file.write(data_buffer.get(), offset);
 	FstreamUtil::CloseFile(block_file);
 }
 
 DataBlock DataBlock::Builder::Build(const size_t tuple_size) {
 	// Checks input consistency and builds DataBlockHeader and the DataBlock itself if the DataBlock is buildable
 	// from given information
+	if (!tuple_size) {
+		throw Exception("Cannot create block from empty tuple");
+	}
+	assert(block_count > 0);
 	header.block_id = block_count;
 	header.amount_of_tuples = 0;
-	header.data_size = tuple_size * header.amount_of_tuples;
+	header.data_size = 0;
 	header.data_offset.push_back(sizeof(DataBlockHeader));
 	block_count++;
 	return DataBlock(header);

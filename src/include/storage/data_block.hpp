@@ -21,7 +21,7 @@
 namespace duckdb {
 
 class DataTable;
-//! Page Header Size =
+//! Block Header Size = 48 bytes
 //! Max Block Size = 2^16 Bytes =  64kb
 constexpr const size_t max_block_size = 16384; // 16KB
 //! Representation of a Page (content stored within a file). Each page holds data from multiuple columns in a PAX way
@@ -33,7 +33,7 @@ struct DataBlockHeader {
 	size_t data_size;
 	//! Amount of tuples within the block
 	size_t amount_of_tuples;
-	//! The offset of the header
+	//! The offset for each column data
 	vector<size_t> data_offset;
 };
 
@@ -47,17 +47,18 @@ public:
 private:
 	DataBlockHeader header;
 	//! The data of the block-> multiple columns (each column has the same type).
-	char *data;
+	unique_ptr<char[]> data_buffer;
 
 	//! Only one simple constructor - rest is handled by Builder
-	DataBlock(const DataBlockHeader _header) : data(nullptr) {
+	DataBlock(const DataBlockHeader _header) {
+		data_buffer = unique_ptr<char[]>(new char[max_block_size]);
 		header = _header;
 		offset = sizeof(DataBlockHeader);
 	};
 
 public:
-	void Append(char *buffer, DataChunk &chunk);
-	void FlushOnDisk(char *buffer, string &path_to_file, size_t block_id);
+	void Append(DataChunk &chunk);
+	void FlushOnDisk(string &path_to_file, size_t block_id);
 	bool is_full = false;
 	size_t offset;
 };
@@ -66,7 +67,6 @@ public:
 class DataBlock::Builder {
 private:
 	DataBlockHeader header;
-	size_t block_id = 0;
 	size_t block_count = 1;
 
 public:

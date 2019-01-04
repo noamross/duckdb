@@ -67,7 +67,7 @@ void StorageManager::LoadDatabase() {
 			// switch the iteration target to the other one
 			iteration = 1 - iteration;
 			// checkpoint the WAL
-			CreateCheckpoint(iteration);
+			CreatePersistentStorage(iteration);
 		}
 	}
 	// initialize the WAL file
@@ -356,9 +356,6 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 			DataBlock::Builder builder;
 			// Then, we build a Data block object using the table information
 			DataBlock dataBlock = builder.Build(table->storage->tuple_size);
-			// and we define a buffer to store the data
-			char buffer[max_block_size];
-
 			// now we initialize the scan
 			ScanStructure ss;
 			table->storage->InitializeScan(ss);
@@ -379,16 +376,18 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 				table->storage->Scan(*transaction, chunk, column_ids, ss);
 				if (chunk.size() == 0) {
 					// chunk does not have data
+					// When there is no more data to be stored we flush it to disk
+					dataBlock.FlushOnDisk(table_directory_path, builder.GetBlockCount());
 					break;
 				}
 
 				// Now we can store the data chunk at a time
 				if (!dataBlock.is_full) {
 					// While DataBlock has space we append data
-					dataBlock.Append(buffer, chunk);
+					dataBlock.Append(chunk);
 				} else {
 					// When the Data Block is full we flush it to disk
-					dataBlock.FlushOnDisk(buffer, table_directory_path, builder.GetBlockCount());
+					dataBlock.FlushOnDisk(table_directory_path, builder.GetBlockCount());
 					// And create a new Data Block for the remaining data
 					dataBlock = builder.Build(table->storage->tuple_size);
 				}
@@ -397,5 +396,30 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 			}
 		}
 	}
-	// We need #tuples, #columns and data type to calculate the size of a block
+	// all the writes have been flushed and the entire database has been written
+	// now we create the temporary meta information file
+	auto meta_path = JoinPath(path, DATABASE_TEMP_INFO_FILE);
+	auto meta_file = FstreamUtil::OpenFile(meta_path, ios_base::out);
+
+	//! Write information to the meta file
+	meta_file << STORAGE_VERSION << '\n';
+	meta_file << iteration << '\n';
+	FstreamUtil::CloseFile(meta_file);
+
+	// now we move the meta information file over the old meta information file
+	// this signifies a "completion" of the checkpoint
+	auto permanent_meta_path = JoinPath(path, DATABASE_INFO_FILE);
+	MoveFile(meta_path, permanent_meta_path);
+
+	// we are now done writing
+	// we can delete the directory for the other iteration because we do not need it anymore for consistency
+	auto other_storage_path = JoinPath(path, STORAGE_FILES[1 - iteration]);
+	auto other_wal_path = JoinPath(path, WAL_FILES[1 - iteration]);
+	if (DirectoryExists(other_storage_path)) {
+		RemoveDirectory(other_storage_path);
+	}
+	if (FileExists(other_wal_path)) {
+		RemoveDirectory(other_wal_path);
+	}
+	transaction->Rollback();
 }
