@@ -38,6 +38,7 @@ template <class T> uint64_t Hash(T value) {
 	return murmurhash32(value);
 }
 
+uint32_t HashStr(const char *str);
 template <> uint64_t Hash(uint64_t val);
 template <> uint64_t Hash(int64_t val);
 template <> uint64_t Hash(double val);

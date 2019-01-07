@@ -6,6 +6,7 @@
 #include "common/file_system.hpp"
 #include "common/fstream_util.hpp"
 #include "common/serializer.hpp"
+#include "common/types/hash.hpp"
 #include "function/function.hpp"
 #include "main/client_context.hpp"
 #include "main/database.hpp"
@@ -333,9 +334,10 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 		// now for each table, write the column meta information and the actual data
 		for (auto &table : tables) {
 			// first create a directory for the table information
-			// FIXME: same problem as schemas, unicode and file systems may not agree
-			auto table_directory_path = JoinPath(schema_directory_path, table->name);
+			auto hashed_table_name = to_string(HashStr(table->name.c_str()));
+			auto table_directory_path = JoinPath(schema_directory_path, hashed_table_name);
 			assert(!DirectoryExists(table_directory_path));
+			
 			// create the directory
 			CreateDirectory(table_directory_path);
 
@@ -391,7 +393,6 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 					// And create a new Data Block for the remaining data
 					dataBlock = builder.Build(table->storage->tuple_size);
 				}
-
 				chunk_count++;
 			}
 		}
