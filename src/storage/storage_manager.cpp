@@ -314,8 +314,8 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 
 	// now for each schema create a directory
 	for (auto &schema : schemas) {
-		// FIXME: schemas can have unicode, do something for file systems, maybe hash?
-		auto schema_directory_path = JoinPath(storage_path_base, schema->name);
+		auto hashed_schema_name = to_string(HashStr(schema->name.c_str()));
+		auto schema_directory_path = JoinPath(storage_path_base, hashed_schema_name);
 		assert(!DirectoryExists(schema_directory_path));
 		// create the directory
 		CreateDirectory(schema_directory_path);
@@ -337,7 +337,6 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 			auto hashed_table_name = to_string(HashStr(table->name.c_str()));
 			auto table_directory_path = JoinPath(schema_directory_path, hashed_table_name);
 			assert(!DirectoryExists(table_directory_path));
-			
 			// create the directory
 			CreateDirectory(table_directory_path);
 

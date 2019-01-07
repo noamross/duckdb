@@ -34,7 +34,7 @@ template <> uint64_t Hash(char *val) {
 }
 
 //! djb2 hash function by Dan Bernstein copied from https://stackoverflow.com/questions/7666509/hash-function-for-string
-uint32_t HashStr(const char* str) {
+uint32_t HashStr(const char *str) {
 	uint32_t hash = 5381;
 	int c;
 	while ((c = *str++)) {
