@@ -111,23 +111,25 @@ int StorageManager::LoadFromStorage() {
 		database.catalog.CreateSchema(context.ActiveTransaction(), &info);
 
 		// now read the list of the tables belonging to this schema
-		auto schema_directory_path = JoinPath(storage_path_base, schema_name);
+		auto hashed_schema_name = to_string(HashStr(schema_name.c_str()));
+		auto schema_directory_path = JoinPath(storage_path_base, hashed_schema_name);
 		auto table_list_path = JoinPath(schema_directory_path, TABLE_LIST_FILE);
 
-		// read the list of schemas
+		// read the list of tables
 		auto table_list_file = FstreamUtil::OpenFile(table_list_path, ios_base::in);
 		string table_name;
 		while (getline(table_list_file, table_name)) {
 			// get the information of the table
-			auto table_directory_path = JoinPath(schema_directory_path, table_name);
+			auto hashed_table_name = to_string(HashStr(table_name.c_str()));
+			auto table_directory_path = JoinPath(schema_directory_path, hashed_table_name);
 			auto table_meta_name = JoinPath(table_directory_path, TABLE_FILE);
 
-			auto table_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::in);
-			auto result = FstreamUtil::ReadBinary(table_file);
+			auto table_meta_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::in);
+			auto result = FstreamUtil::ReadBinary(table_meta_file);
 
 			// deserialize the CreateTableInformation
-			auto table_file_size = FstreamUtil::GetFileSize(table_file);
-			Deserializer source((uint8_t *)result.get(), table_file_size);
+			auto table_meta_file_size = FstreamUtil::GetFileSize(table_meta_file);
+			Deserializer source((uint8_t *)result.get(), table_meta_file_size);
 			auto info = TableCatalogEntry::Deserialize(source);
 			// create the table inside the catalog
 			database.catalog.CreateTable(context.ActiveTransaction(), info.get());
@@ -341,14 +343,10 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 			CreateDirectory(table_directory_path);
 
 			auto table_meta_name = JoinPath(table_directory_path, TABLE_FILE);
-			auto table_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::out);
 
 			// serialize the table information to a file
 			Serializer serializer;
 			table->Serialize(serializer);
-			auto serilized_data = serializer.GetData();
-			table_file.write((char *)serilized_data.data.get(), serilized_data.size);
-			FstreamUtil::CloseFile(table_file);
 
 			// now we have to write the actual binary
 			// we do this by performing a scan of the table
@@ -365,11 +363,12 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 			for (size_t i = 0; i < table->columns.size(); i++) {
 				column_ids.push_back(i);
 			}
-			// and columnt types
+			// and column types
 			DataChunk chunk;
 			auto types = table->GetTypes();
 			chunk.Initialize(types);
 			size_t chunk_count = 1;
+			unordered_map<uint32_t, string> data_to_file;
 			// Then we iterate over the data to build the dataBlocks
 			while (true) {
 				chunk.Reset();
@@ -378,7 +377,10 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 				if (chunk.size() == 0) {
 					// chunk does not have data
 					// When there is no more data to be stored we flush it to disk
-					dataBlock.FlushOnDisk(table_directory_path, builder.GetBlockCount());
+					auto data_chunk = chunk.size() * builder.GetCurrentBlockId();
+					auto data_file = to_string(builder.GetCurrentBlockId()) + ".duck";
+					data_to_file.insert(make_pair(data_chunk, data_file));
+					dataBlock.FlushOnDisk(table_directory_path, builder.GetCurrentBlockId());
 					break;
 				}
 
@@ -388,12 +390,24 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 					dataBlock.Append(chunk);
 				} else {
 					// When the Data Block is full we flush it to disk
-					dataBlock.FlushOnDisk(table_directory_path, builder.GetBlockCount());
+					auto data_chunk = chunk.size() * builder.GetCurrentBlockId();
+					auto data_file = to_string(builder.GetCurrentBlockId()) + ".duck";
+					data_to_file.insert(make_pair(data_chunk, data_file));
+					dataBlock.FlushOnDisk(table_directory_path, builder.GetCurrentBlockId());
 					// And create a new Data Block for the remaining data
 					dataBlock = builder.Build(table->storage->tuple_size);
 				}
 				chunk_count++;
 			}
+			auto table_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::out);
+			for (auto pair : data_to_file) {
+				serializer.Write<uint32_t>(pair.first);
+				serializer.WriteString(pair.second);
+			}
+			auto serilized_data = serializer.GetData();
+			table_file.write((char *)serilized_data.data.get(), serilized_data.size);
+			FstreamUtil::CloseFile(table_file);
+			// TODO serilize data_to_file map inside tableinfo.duck
 		}
 	}
 	// all the writes have been flushed and the entire database has been written

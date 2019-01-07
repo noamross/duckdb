@@ -12,7 +12,7 @@ void DataBlock::Append(DataChunk &chunk) {
 		if (TypeIsConstantSize(type)) {
 			// constant size type: simple memcpy
 			// VectorOperations::CopyToStorage(chunk.data[i], data_buffer, offset); TODO: Vector primitive for copy
-			auto data_length = (sizeof(type) * chunk.size());
+			auto data_length = (GetTypeIdSize(type) * chunk.size());
 			memcpy(dataptr + offset, &chunk.data[i].data, data_length);
 			offset += data_length;
 		} else {
@@ -33,23 +33,25 @@ void DataBlock::Append(DataChunk &chunk) {
 
 	header.amount_of_tuples += chunk.size();
 	// now we check whether we can still append data within this data block
-	if (offset + (sizeof(int) * chunk.size()) >= max_block_size) {
+	if (!HasSpace(offset, chunk.size())) {
 		// we can't fit any more elements
-		// first write the header
-		// the data size is the offset without the header
+		// then, we need to compute the data size
 		header.data_size = offset - sizeof(DataBlockHeader);
-		// now we copy the header to our buffer
+		// and now we copy the header to our buffer
 		memcpy(dataptr, &header, sizeof(DataBlockHeader));
-
-		// then we set the block as full to a create new block in the next iteration
+		// finally we set the block as full to a create new block in the next iteration
 		is_full = true;
 	}
 }
 
-void DataBlock::FlushOnDisk(string &path_to_file, size_t block_id) {
+bool DataBlock::HasSpace(size_t offset, size_t chunk_size) {
+	auto offset_next_chunk = offset + (header.tuple_size * chunk_size);
+	return (offset_next_chunk < max_block_size);
+}
 
+void DataBlock::FlushOnDisk(string &path_to_file, size_t block_id) {
 	auto block_name = JoinPath(path_to_file, to_string(block_id) + ".duck");
-	auto block_file = FstreamUtil::OpenFile(block_name, ios_base::binary | ios_base::out);
+	auto block_file = FstreamUtil::OpenFile(block_name, ios_base::out); // ios_base::binary | ios_base::out);
 	block_file.write(data_buffer.get(), offset);
 	FstreamUtil::CloseFile(block_file);
 }
@@ -60,7 +62,8 @@ DataBlock DataBlock::Builder::Build(const size_t tuple_size) {
 	if (!tuple_size) {
 		throw Exception("Cannot create block from empty tuple");
 	}
-	assert(block_count > 0);
+	assert(block_count >= 0);
+	header.tuple_size = tuple_size;
 	header.block_id = block_count;
 	header.amount_of_tuples = 0;
 	header.data_size = 0;

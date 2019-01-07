@@ -33,6 +33,8 @@ struct DataBlockHeader {
 	size_t data_size;
 	//! Amount of tuples within the block
 	size_t amount_of_tuples;
+	//! size of tuples stored in this block in bytes
+	size_t tuple_size;
 	//! The offset for each column data
 	vector<size_t> data_offset;
 };
@@ -59,6 +61,7 @@ private:
 public:
 	void Append(DataChunk &chunk);
 	void FlushOnDisk(string &path_to_file, size_t block_id);
+	bool HasSpace(size_t offset, size_t chunk_size);
 	bool is_full = false;
 	size_t offset;
 };
@@ -67,13 +70,13 @@ public:
 class DataBlock::Builder {
 private:
 	DataBlockHeader header;
-	size_t block_count = 1;
+	size_t block_count = 0;
 
 public:
 	//! Produces a new DataBlock
 	DataBlock Build(const size_t tuple_size);
-	size_t GetBlockCount() const {
-		return block_count;
+	size_t GetCurrentBlockId() const {
+		return header.block_id;
 	}
 };
 
