@@ -109,7 +109,6 @@ int StorageManager::LoadFromStorage() {
 		info.schema = schema_name;
 		info.if_not_exists = true;
 		database.catalog.CreateSchema(context.ActiveTransaction(), &info);
-
 		// now read the list of the tables belonging to this schema
 		auto hashed_schema_name = to_string(HashStr(schema_name.c_str()));
 		auto schema_directory_path = JoinPath(storage_path_base, hashed_schema_name);
@@ -134,6 +133,13 @@ int StorageManager::LoadFromStorage() {
 			// create the table inside the catalog
 			database.catalog.CreateTable(context.ActiveTransaction(), info.get());
 
+			// Read the data_to_file information
+			auto file_count = source.Read<size_t>();
+			unordered_map<uint32_t, string> data_to_file;
+			for (size_t i = 0; i != file_count; ++i) {
+				data_to_file.insert(make_pair(source.Read<uint32_t>(), source.Read<string>()));
+			}
+
 			// now load the actual data
 			auto *table = database.catalog.GetTable(context.ActiveTransaction(), info->schema, info->table);
 			auto types = table->GetTypes();
@@ -142,13 +148,14 @@ int StorageManager::LoadFromStorage() {
 
 			size_t chunk_count = 1;
 			while (true) {
-				auto chunk_name = JoinPath(table_directory_path, "chunk-" + to_string(chunk_count) + ".bin");
+				auto chunk_name = JoinPath(table_directory_path, "0.duck");
 				if (!FileExists(chunk_name)) {
 					break;
 				}
 
 				auto chunk_file = FstreamUtil::OpenFile(chunk_name, ios_base::binary | ios_base::in);
 				auto result = FstreamUtil::ReadBinary(chunk_file);
+
 				// deserialize the chunk
 				DataChunk insert_chunk;
 				auto chunk_file_size = FstreamUtil::GetFileSize(chunk_file);
@@ -400,6 +407,7 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 				chunk_count++;
 			}
 			auto table_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::out);
+			serializer.Write<size_t>(data_to_file.size());
 			for (auto pair : data_to_file) {
 				serializer.Write<uint32_t>(pair.first);
 				serializer.WriteString(pair.second);

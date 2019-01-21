@@ -56,6 +56,13 @@ void DataBlock::FlushOnDisk(string &path_to_file, size_t block_id) {
 	FstreamUtil::CloseFile(block_file);
 }
 
+void DataBlock::ReadFromDisk(string &path_to_file, size_t block_id) {
+	auto block_name = JoinPath(path_to_file, to_string(block_id) + ".duck");
+	auto block_file = FstreamUtil::OpenFile(block_name, ios_base::out); // ios_base::binary | ios_base::out);
+	block_file.write(data_buffer.get(), offset);
+	FstreamUtil::CloseFile(block_file);
+}
+
 DataBlock DataBlock::Builder::Build(const size_t tuple_size) {
 	// Checks input consistency and builds DataBlockHeader and the DataBlock itself if the DataBlock is buildable
 	// from given information
