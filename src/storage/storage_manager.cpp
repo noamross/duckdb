@@ -145,14 +145,22 @@ int StorageManager::LoadFromStorage() {
 			auto types = table->GetTypes();
 			DataChunk chunk;
 			chunk.Initialize(types);
-
+			for (const auto &[key, value] : data_to_file) {
+				cout << key << ": " << value << endl;
+			}
+			auto file_iterator = data_to_file.cbegin();
+			// First, we create an object reponsible to create DataBlocks
+			DataBlock::Builder builder;
+			// Then, we build a Data block object using the table information
+			DataBlock dataBlock = builder.Build(table->storage->tuple_size);
 			size_t chunk_count = 1;
 			while (true) {
-				auto chunk_name = JoinPath(table_directory_path, "0.duck");
+				auto data_file = file_iterator->second;
+				auto chunk_name = JoinPath(table_directory_path, data_file);
 				if (!FileExists(chunk_name)) {
 					break;
 				}
-
+				dataBlock.ReadFromDisk(chunk_name);
 				auto chunk_file = FstreamUtil::OpenFile(chunk_name, ios_base::binary | ios_base::in);
 				auto result = FstreamUtil::ReadBinary(chunk_file);
 
