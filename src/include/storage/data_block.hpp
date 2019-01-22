@@ -60,7 +60,7 @@ private:
 
 public:
 	void Append(DataChunk &chunk);
-	void FlushOnDisk(string &path_to_file, size_t block_id);
+	void FlushToDisk(string &path_to_file, size_t block_id);
 	void ReadFromDisk(string &path_to_file);
 	bool HasSpace(size_t offset, size_t chunk_size);
 	bool is_full = false;

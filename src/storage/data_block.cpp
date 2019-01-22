@@ -50,7 +50,7 @@ bool DataBlock::HasSpace(size_t offset, size_t chunk_size) {
 	return (offset_next_chunk < max_block_size);
 }
 
-void DataBlock::FlushOnDisk(string &path_to_file, size_t block_id) {
+void DataBlock::FlushToDisk(string &path_to_file, size_t block_id) {
 	auto block_name = JoinPath(path_to_file, to_string(block_id) + ".duck");
 	auto block_file = FstreamUtil::OpenFile(block_name, ios_base::out); // ios_base::binary | ios_base::out);
 	block_file.write(data_buffer.get(), offset);
