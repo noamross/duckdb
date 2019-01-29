@@ -15,7 +15,7 @@ fstream FstreamUtil::OpenFile(const string &file_path, ios_base::openmode mode) 
 
 void FstreamUtil::CloseFile(fstream &file) {
 	file.close();
-	// check the success of the write
+	// check the success of the write or read
 	if (file.fail()) {
 		throw IOException("Failed to close the file!");
 	}

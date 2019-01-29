@@ -14,8 +14,10 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace duckdb {
@@ -26,9 +28,11 @@ using std::ios;
 using std::ios_base;
 using std::map;
 using std::move;
+using std::mutex;
 using std::string;
 using std::unique_ptr;
 using std::unordered_map;
+using std::unordered_set;
 using std::vector;
 using data_ptr = unique_ptr<char[]>;
 

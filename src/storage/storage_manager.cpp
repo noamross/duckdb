@@ -161,16 +161,16 @@ int StorageManager::LoadFromStorage() {
 					break;
 				}
 				dataBlock.ReadFromDisk(chunk_name);
-				auto chunk_file = FstreamUtil::OpenFile(chunk_name, ios_base::binary | ios_base::in);
-				auto result = FstreamUtil::ReadBinary(chunk_file);
+				// auto chunk_file = FstreamUtil::OpenFile(chunk_name, ios_base::binary | ios_base::in);
+				// auto result = FstreamUtil::ReadBinary(chunk_file);
 
 				// deserialize the chunk
-				DataChunk insert_chunk;
+				/*DataChunk insert_chunk;
 				auto chunk_file_size = FstreamUtil::GetFileSize(chunk_file);
 				Deserializer source((uint8_t *)result.get(), chunk_file_size);
-				insert_chunk.Deserialize(source);
+				insert_chunk.Deserialize(source);*/
 				// insert the chunk into the table
-				table->storage->Append(*table, context, insert_chunk);
+				// table->storage->Append(*table, context, insert_chunk);
 				chunk_count++;
 			}
 		}
@@ -395,7 +395,7 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 					auto data_chunk = chunk.size() * builder.GetCurrentBlockId();
 					auto data_file = to_string(builder.GetCurrentBlockId()) + ".duck";
 					data_to_file.insert(make_pair(data_chunk, data_file));
-					dataBlock.FlushOnDisk(table_directory_path, builder.GetCurrentBlockId());
+					dataBlock.FlushToDisk(table_directory_path, builder.GetCurrentBlockId());
 					break;
 				}
 
@@ -408,7 +408,7 @@ void StorageManager::CreatePersistentStorage(int iteration) {
 					auto data_chunk = chunk.size() * builder.GetCurrentBlockId();
 					auto data_file = to_string(builder.GetCurrentBlockId()) + ".duck";
 					data_to_file.insert(make_pair(data_chunk, data_file));
-					dataBlock.FlushOnDisk(table_directory_path, builder.GetCurrentBlockId());
+					dataBlock.FlushToDisk(table_directory_path, builder.GetCurrentBlockId());
 					// And create a new Data Block for the remaining data
 					dataBlock = builder.Build(table->storage->tuple_size);
 				}

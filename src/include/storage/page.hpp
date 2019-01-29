@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #pragma once
+#include "common/common.hpp"
 
 #include <atomic>
 #include <mutex>
