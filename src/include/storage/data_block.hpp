@@ -5,9 +5,9 @@
 //
 //
 //===----------------------------------------------------------------------===//
+#pragma once
 
 #include "common/common.hpp"
-#include "common/constants.hpp"
 #include "common/file_system.hpp"
 #include "common/fstream_util.hpp"
 #include "common/types/data_chunk.hpp"

@@ -5,6 +5,9 @@
 using namespace duckdb;
 using namespace std;
 
+PageQueue::PageQueue() {
+}
+
 void PageQueue::Delete(block_id_t page_identifier) {
 	assert(page_identifier >= 0);
 	//! check whether key is in the map
@@ -13,18 +16,20 @@ void PageQueue::Delete(block_id_t page_identifier) {
 		throw Exception("Page does not exist!");
 	}
 	//! the key is in the map so we need the position within the queue
-	auto position_on_queue = map_to_queue[page_identifier];
-	//! then we set it to null
-	cooling_queue[position_on_queue] = nullptr;
-	// and erase the entry in the hash map
+	auto entry_to_delete = map_to_queue[page_identifier];
+	//! then we delete the entry
+	cooling_queue.remove_entry(entry_to_delete);
+	// and erase the reference in the hash map
 	map_to_queue.erase(page_identifier);
 }
 
 void PageQueue::Insert(block_id_t page_identifier, Page *page) {
 	assert(page != nullptr && page_identifier >= 0);
-	//! we create an entry using the page identifier as key and the position within the queue as value
-	auto entry = unique_ptr<Node>;
-	map_to_queue[page_identifier] = entry.get();
+	//! we create a new entry which points to the page
+	ListEntry *new_entry = nullptr;
+	new_entry->page_address = page;
+	//! and add it to the map
+	map_to_queue[page_identifier] = new_entry;
 	//! then we add the page address to our queue
-	cooling_queue.insert(entry);
+	cooling_queue.insert_entry(new_entry);
 }

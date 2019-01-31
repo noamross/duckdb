@@ -6,18 +6,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "storage/page.hpp"
-
 #pragma once
+
+#include "storage/page.hpp"
 
 namespace duckdb {
 
 using block_id_t = size_t;
-constexpr size_t QUEUE_CAPACITY = 10;
+constexpr const size_t QUEUE_CAPACITY = 10;
 
-struct Node {
-	Node *next;
-	Node *previous;
+struct ListEntry {
+	ListEntry *next;
+	ListEntry *previous;
 	Page *page_address;
 };
 
@@ -25,20 +25,21 @@ class List {
 public:
 	List() : head(nullptr), tail(nullptr) {
 	}
-	void insert_entry(Node *entry) {
-		//! check whether head is null or not. If head is null, assign the Node and exit.
+	void insert_entry(ListEntry* entry) {
+		//! check whether head is null.
 		if (head == nullptr) {
+			//! The head is null. Just assign the Node and exit.
 			head = tail = entry;
 			return;
 		}
-		//! walk the List until you find
+		//! Include the new entry after the tail and update the tail.
 		tail->next = entry;
 		entry->previous = tail;
 		tail = entry;
 	}
 
-	void remove_entry(Node entry) {
-		//! The indirect address will point to the node we want to remove
+	void remove_entry(ListEntry* entry) {
+		//! The indirect address will point to the address of the node we want to remove
 		auto indirect = &head;
 		//! we walk the list to find the entry which points to the one to be removed
 		while ((*indirect) != entry) {
@@ -49,23 +50,20 @@ public:
 	}
 
 private:
-	Node *head;
-	Node *tail;
+	ListEntry* head;
+	ListEntry* tail;
 };
 
 class PageQueue {
 public:
-	PageQueue() {
-		current_position = 0;
-		capacity = QUEUE_CAPACITY;
-	}
-	unordered_map<block_id_t, Node *> map_to_queue;
-	List cooling_queue;
-	void Insert(block_id_t page_identifier, Page *page);
+	PageQueue();
+	void Insert(block_id_t page_identifier, Page* page);
 	void Delete(block_id_t page_identifier);
 
 private:
-	static size_t current_position;
-	static size_t capacity;
+	unordered_map<block_id_t, ListEntry*> map_to_queue;
+	List cooling_queue;
+	constexpr static size_t current_position = 0;
+	const static size_t capacity = QUEUE_CAPACITY;
 };
 } // namespace duckdb

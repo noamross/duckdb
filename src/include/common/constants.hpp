@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <bitset>
 #include <cstdlib>
 #include <fstream>

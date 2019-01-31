@@ -7,16 +7,13 @@
 //===----------------------------------------------------------------------===//
 
 #pragma once
-#include "common/common.hpp"
 
-#include <atomic>
-#include <mutex>
-#include <vector>
+#include "common/common.hpp"
 
 namespace duckdb {
 
 // Size of pages, 16K
-#define PAGE_SIZE 16384
+constexpr const size_t PAGE_SIZE = 16384;
 
 typedef union {
 	struct {

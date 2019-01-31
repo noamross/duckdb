@@ -6,16 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "common/exception.hpp"
+#pragma once
+
+#include "common/common.hpp"
 #include "storage/page.hpp"
 #include "storage/page_queue.hpp"
 
-#include <atomic>
-#include <mutex>
-#include <queue>
-#include <vector>
-
-#pragma once
 namespace duckdb {
 
 using block_id_t = size_t;
