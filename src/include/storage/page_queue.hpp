@@ -25,7 +25,7 @@ class List {
 public:
 	List() : head(nullptr), tail(nullptr) {
 	}
-	void insert_entry(ListEntry* entry) {
+	void insert_entry(ListEntry *entry) {
 		//! check whether head is null.
 		if (head == nullptr) {
 			//! The head is null. Just assign the Node and exit.
@@ -38,7 +38,7 @@ public:
 		tail = entry;
 	}
 
-	void remove_entry(ListEntry* entry) {
+	void remove_entry(ListEntry *entry) {
 		//! The indirect address will point to the address of the node we want to remove
 		auto indirect = &head;
 		//! we walk the list to find the entry which points to the one to be removed
@@ -50,18 +50,18 @@ public:
 	}
 
 private:
-	ListEntry* head;
-	ListEntry* tail;
+	ListEntry *head;
+	ListEntry *tail;
 };
 
 class PageQueue {
 public:
 	PageQueue();
-	void Insert(block_id_t page_identifier, Page* page);
+	void Insert(block_id_t page_identifier, Page *page);
 	void Delete(block_id_t page_identifier);
 
 private:
-	unordered_map<block_id_t, ListEntry*> map_to_queue;
+	unordered_map<block_id_t, ListEntry *> map_to_queue;
 	List cooling_queue;
 	constexpr static size_t current_position = 0;
 	const static size_t capacity = QUEUE_CAPACITY;

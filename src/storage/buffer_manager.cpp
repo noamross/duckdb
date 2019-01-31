@@ -9,7 +9,7 @@ BufferManager::BufferManager() {
 void BufferManager::LoadPage(block_id_t page_identifier) {
 }
 
-Page* BufferManager::CreatePage(string& fname) {
+Page *BufferManager::CreatePage(string &fname) {
 	/*block_id_t id = current_counter++;
 	block_mapping[id] = fname;*/
 	return nullptr;
@@ -18,7 +18,7 @@ Page* BufferManager::CreatePage(string& fname) {
 BufferManager::~BufferManager() {
 }
 
-BufferManager& BufferManager::GetInstance() {
+BufferManager &BufferManager::GetInstance() {
 	static BufferManager bm_instance;
 	return bm_instance;
 	/*if (bm_instance == nullptr) {
