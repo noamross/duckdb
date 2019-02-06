@@ -11,7 +11,7 @@ PageQueue::PageQueue() {
 void PageQueue::Delete(block_id_t page_identifier) {
 	assert(page_identifier >= 0);
 	//! check whether key is in the map
-	if (map_to_queue.find(page_identifier) == map_to_queue.end()) {
+	if (IsPageCooling(page_identifier)) {
 		// key is not in the map
 		throw Exception("Page does not exist!");
 	}
@@ -32,4 +32,8 @@ void PageQueue::Insert(block_id_t page_identifier, Page *page) {
 	map_to_queue[page_identifier] = new_entry;
 	//! then we add the page address to our queue
 	cooling_queue.insert_entry(new_entry);
+}
+
+bool PageQueue::IsPageCooling(block_id_t page_identifier) {
+	return map_to_queue.find(page_identifier) == map_to_queue.end();
 }

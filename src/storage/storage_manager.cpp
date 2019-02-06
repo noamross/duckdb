@@ -145,9 +145,6 @@ int StorageManager::LoadFromStorage() {
 			auto types = table->GetTypes();
 			DataChunk chunk;
 			chunk.Initialize(types);
-			for (const auto &[key, value] : data_to_file) {
-				cout << key << ": " << value << endl;
-			}
 			auto file_iterator = data_to_file.cbegin();
 			// First, we create an object reponsible to create DataBlocks
 			DataBlock::Builder builder;
@@ -305,6 +302,156 @@ void StorageManager::CreateCheckpoint(int iteration) {
 }
 
 void StorageManager::CreatePersistentStorage(int iteration) {
+	auto transaction = database.transaction_manager.StartTransaction();
+	assert(iteration == 0 || iteration == 1);
+	auto storage_path_base = JoinPath(path, STORAGE_FILES[iteration]);
+	if (DirectoryExists(storage_path_base)) {
+		// have a leftover directory
+		// remove it
+		RemoveDirectory(storage_path_base);
+	}
+	// create the directory
+	CreateDirectory(storage_path_base);
+
+	// first we have to access the schemas
+	auto schema_path = JoinPath(storage_path_base, SCHEMA_FILE);
+
+	auto schema_file = FstreamUtil::OpenFile(schema_path, ios_base::out);
+
+	vector<SchemaCatalogEntry *> schemas;
+	// scan the schemas and write them to the schemas.csv file
+	database.catalog.schemas.Scan(*transaction, [&](CatalogEntry *entry) {
+		schema_file << entry->name << '\n';
+		schemas.push_back((SchemaCatalogEntry *)entry);
+	});
+	FstreamUtil::CloseFile(schema_file);
+
+	// now for each schema create a directory
+	for (auto &schema : schemas) {
+		auto hashed_schema_name = to_string(HashStr(schema->name.c_str()));
+		auto schema_directory_path = JoinPath(storage_path_base, hashed_schema_name);
+		assert(!DirectoryExists(schema_directory_path));
+		// create the directory
+		CreateDirectory(schema_directory_path);
+		// create the file holding the list of tables for the schema
+		auto table_list_path = JoinPath(schema_directory_path, TABLE_LIST_FILE);
+		auto table_list_file = FstreamUtil::OpenFile(table_list_path, ios_base::out);
+
+		// create the list of tables for the schema
+		vector<TableCatalogEntry *> tables;
+		schema->tables.Scan(*transaction, [&](CatalogEntry *entry) {
+			table_list_file << entry->name << '\n';
+			tables.push_back((TableCatalogEntry *)entry);
+		});
+		FstreamUtil::CloseFile(table_list_file);
+
+		// now for each table, write the column meta information and the actual data
+		for (auto &table : tables) {
+			// first create a directory for the table information
+			auto hashed_table_name = to_string(HashStr(table->name.c_str()));
+			auto table_directory_path = JoinPath(schema_directory_path, hashed_table_name);
+			assert(!DirectoryExists(table_directory_path));
+			// create the directory
+			CreateDirectory(table_directory_path);
+
+			auto table_meta_name = JoinPath(table_directory_path, TABLE_FILE);
+
+			// serialize the table information to a file
+			Serializer serializer;
+			table->Serialize(serializer);
+
+			// now we have to write the actual binary
+			// we do this by performing a scan of the table
+
+			// First, we create an object reponsible to create DataBlocks
+			DataBlock::Builder builder;
+			// Then, we build a Data block object using the table information
+			DataBlock dataBlock = builder.Build(table->storage->tuple_size);
+			// now we initialize the scan
+			ScanStructure ss;
+			table->storage->InitializeScan(ss);
+			// storing the column sizes
+			vector<column_t> column_ids;
+			for (size_t i = 0; i < table->columns.size(); i++) {
+				column_ids.push_back(i);
+			}
+			// and column types
+			DataChunk chunk;
+			auto types = table->GetTypes();
+			chunk.Initialize(types);
+			size_t chunk_count = 1;
+			unordered_map<uint32_t, string> data_to_file;
+			// Then we iterate over the data to build the dataBlocks
+			while (true) {
+				chunk.Reset();
+				// we scan the chunk
+				table->storage->Scan(*transaction, chunk, column_ids, ss);
+				if (chunk.size() == 0) {
+					// chunk does not have data
+					// When there is no more data to be stored we flush it to disk
+					auto data_chunk = chunk.size() * builder.GetCurrentBlockId();
+					auto data_file = to_string(builder.GetCurrentBlockId()) + ".duck";
+					data_to_file.insert(make_pair(data_chunk, data_file));
+					dataBlock.FlushToDisk(table_directory_path, builder.GetCurrentBlockId());
+					break;
+				}
+
+				// Now we can store the data chunk at a time
+				if (!dataBlock.is_full) {
+					// While DataBlock has space we append data
+					dataBlock.Append(chunk);
+				} else {
+					// When the Data Block is full we flush it to disk
+					auto data_chunk = chunk.size() * builder.GetCurrentBlockId();
+					auto data_file = to_string(builder.GetCurrentBlockId()) + ".duck";
+					data_to_file.insert(make_pair(data_chunk, data_file));
+					dataBlock.FlushToDisk(table_directory_path, builder.GetCurrentBlockId());
+					// And create a new Data Block for the remaining data
+					dataBlock = builder.Build(table->storage->tuple_size);
+				}
+				chunk_count++;
+			}
+			auto table_file = FstreamUtil::OpenFile(table_meta_name, ios_base::binary | ios_base::out);
+			serializer.Write<size_t>(data_to_file.size());
+			for (auto pair : data_to_file) {
+				serializer.Write<uint32_t>(pair.first);
+				serializer.WriteString(pair.second);
+			}
+			auto serilized_data = serializer.GetData();
+			table_file.write((char *)serilized_data.data.get(), serilized_data.size);
+			FstreamUtil::CloseFile(table_file);
+			// TODO serilize data_to_file map inside tableinfo.duck
+		}
+	}
+	// all the writes have been flushed and the entire database has been written
+	// now we create the temporary meta information file
+	auto meta_path = JoinPath(path, DATABASE_TEMP_INFO_FILE);
+	auto meta_file = FstreamUtil::OpenFile(meta_path, ios_base::out);
+
+	//! Write information to the meta file
+	meta_file << STORAGE_VERSION << '\n';
+	meta_file << iteration << '\n';
+	FstreamUtil::CloseFile(meta_file);
+
+	// now we move the meta information file over the old meta information file
+	// this signifies a "completion" of the checkpoint
+	auto permanent_meta_path = JoinPath(path, DATABASE_INFO_FILE);
+	MoveFile(meta_path, permanent_meta_path);
+
+	// we are now done writing
+	// we can delete the directory for the other iteration because we do not need it anymore for consistency
+	auto other_storage_path = JoinPath(path, STORAGE_FILES[1 - iteration]);
+	auto other_wal_path = JoinPath(path, WAL_FILES[1 - iteration]);
+	if (DirectoryExists(other_storage_path)) {
+		RemoveDirectory(other_storage_path);
+	}
+	if (FileExists(other_wal_path)) {
+		RemoveDirectory(other_wal_path);
+	}
+	transaction->Rollback();
+}
+
+void StorageManager::CreatePersistentStorage_(int iteration) {
 	auto transaction = database.transaction_manager.StartTransaction();
 	assert(iteration == 0 || iteration == 1);
 	auto storage_path_base = JoinPath(path, STORAGE_FILES[iteration]);

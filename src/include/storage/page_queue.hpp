@@ -59,6 +59,7 @@ public:
 	PageQueue();
 	void Insert(block_id_t page_identifier, Page *page);
 	void Delete(block_id_t page_identifier);
+	bool IsPageCooling(block_id_t page_identifier);
 
 private:
 	unordered_map<block_id_t, ListEntry *> map_to_queue;

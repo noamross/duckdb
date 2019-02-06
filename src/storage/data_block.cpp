@@ -77,5 +77,6 @@ DataBlock DataBlock::Builder::Build(const size_t tuple_size) {
 	header.data_size = 0;
 	header.data_offset.push_back(sizeof(DataBlockHeader));
 	block_count++;
+	auto buffer = unique_ptr<char[]>(new char[max_block_size]);
 	return DataBlock(header);
 }

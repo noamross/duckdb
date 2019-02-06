@@ -16,6 +16,18 @@
 namespace duckdb {
 
 constexpr const int64_t STORAGE_VERSION = 1;
+// Size of a memory slot managed by the StorageManager. This is the quantum of allocation for DataBlocks. 2 MB is the
+// large page size on x86.
+constexpr const size_t MAX_DATA_BLOCK_SIZE = 0x200000;
+// Size of a memory slot managed by the StorageManager. This is the quantum of allocation for MetaBlocks. 4 KB is the
+// usual hardware page size.
+constexpr const size_t MAX_META_BLOCK_SIZE = 0x1000;
+
+struct BlockHandle {
+	void *block_memory;
+	size_t block_size; // size of block in bytes
+	BlockReference *block;
+};
 
 class Catalog;
 class DuckDB;
@@ -39,10 +51,11 @@ private:
 	//! Load the initial database from the main storage (without WAL). Returns which alternate storage to write to.
 	int LoadFromStorage();
 	//! Checkpoint the current state of the WAL and flush it to the main storage. This should be called BEFORE any
-	//! connction is available because right now the checkpointing cannot be done online. (TODO)
+	//! connection is available because right now the checkpointing cannot be done online. (TODO)
 	void CreateCheckpoint(int iteration);
 	//! Creates and stores the data blocks for physical storage
 	void CreatePersistentStorage(int iteration);
+	void CreatePersistentStorage_(int iteration);
 
 	//! The path of the database
 	string path;
@@ -50,7 +63,12 @@ private:
 	DuckDB &database;
 	//! The WriteAheadLog of the storage manager
 	WriteAheadLog wal;
-	//! The id of the last block TODO:
+
+	// Directory of in-memory blocks. Read by blockIsLoaded(), saveBlock(),
+	// getBlock()/getBlockMutable() and blockOrBlobIsLoadedAndDirty().
+	// Modified by createBlock(), loadBlock(), and evictBlock().
+	unordered_map<block_id_t, BlockHandle> block_map;
+
 };
 
 } // namespace duckdb
