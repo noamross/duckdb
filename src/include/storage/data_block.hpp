@@ -15,7 +15,7 @@
 #include "common/types/null_value.hpp"
 #include "common/types/vector.hpp"
 #include "common/vector_operations/vector_operations.hpp"
-#include "storage/block_reference.hpp"
+#include "storage/block.hpp"
 
 #include <stddef.h>
 #include <string>
@@ -43,7 +43,7 @@ struct DataBlockHeader {
 
 //! The DataBlock is the physical unit to store data. It has a physical block which is stored in a file with multiple
 //! blocks
-class DataBlock : public BlockReference {
+class DataBlock : public Block {
 public:
 	//! This class constructs the Data Block
 	class Builder;
@@ -54,13 +54,14 @@ private:
 	unique_ptr<char[]> data_buffer;
 
 	//! Only one simple constructor - rest is handled by Builder
-	DataBlock(const DataBlockHeader created_header) : header(created_header), offset(sizeof(DataBlockHeader)){};
+	DataBlock(const DataBlockHeader created_header)
+	    : Block(created_header.block_id), header(created_header), offset(sizeof(DataBlockHeader)){};
 
 public:
-	block_id_t GetId() const override {
+	block_id_t GetId() const {
 		return header.block_id;
 	};
-	size_t GetSize() const override {
+	size_t GetSize() const {
 		return header.data_size;
 	};
 	void Append(DataChunk &chunk);

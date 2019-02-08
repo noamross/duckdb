@@ -9,6 +9,7 @@
 #pragma once
 
 #include "common/helper.hpp"
+#include "storage/block_manager.hpp"
 #include "storage/data_block.hpp"
 #include "storage/data_table.hpp"
 #include "storage/write_ahead_log.hpp"
@@ -16,18 +17,12 @@
 namespace duckdb {
 
 constexpr const int64_t STORAGE_VERSION = 1;
-// Size of a memory slot managed by the StorageManager. This is the quantum of allocation for DataBlocks. 2 MB is the
+// Size of a memory slot managed by the StorageManager. This is the quantum of allocation for DataBlocks. 1 MB is the
 // large page size on x86.
-constexpr const size_t MAX_DATA_BLOCK_SIZE = 0x200000;
-// Size of a memory slot managed by the StorageManager. This is the quantum of allocation for MetaBlocks. 4 KB is the
-// usual hardware page size.
-constexpr const size_t MAX_META_BLOCK_SIZE = 0x1000;
-
-struct BlockHandle {
-	void *block_memory;
-	size_t block_size; // size of block in bytes
-	BlockReference *block;
-};
+constexpr const size_t DATA_BLOCK_SIZE = 0x100000;
+// The storage works as tree where the root node should be fetched easily. Therefore the root size is 4k which is the
+// basic hardware page size
+constexpr const size_t ROOT_BLOCK_SIZE = 0x1000;
 
 class Catalog;
 class DuckDB;
@@ -63,12 +58,10 @@ private:
 	DuckDB &database;
 	//! The WriteAheadLog of the storage manager
 	WriteAheadLog wal;
-
-	// Directory of in-memory blocks. Read by blockIsLoaded(), saveBlock(),
-	// getBlock()/getBlockMutable() and blockOrBlobIsLoadedAndDirty().
-	// Modified by createBlock(), loadBlock(), and evictBlock().
-	unordered_map<block_id_t, BlockHandle> block_map;
-
+	//! The BlockManager to read/store meta information and data in blocks
+	unique_ptr<BlockManager> block_manager;
+	//! Maps row offsets to blocks TODO: We are gonna move this to the buffer manager
+	vector<BlockEntry> rows_to_block;
 };
 
 } // namespace duckdb
