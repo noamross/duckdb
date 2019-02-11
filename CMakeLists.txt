@@ -48,8 +48,9 @@ include_directories(third_party/hyperloglog)
 add_subdirectory(src)
 add_subdirectory(third_party)
 add_subdirectory(test)
+add_subdirectory(tools)
 
 IF (NOT WIN32)
-  add_subdirectory(tools)
+
   add_subdirectory(benchmark)
 ENDIF()

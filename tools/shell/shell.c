@@ -1404,7 +1404,7 @@ struct ImportCtx {
 */
 static void output_reset(ShellState *p) {
 	if (p->outfile[0] == '|') {
-		pclose(p->out);
+	//	pclose(p->out);
 	} else {
 		output_file_close(p->out);
 	}
@@ -2303,7 +2303,7 @@ static char *find_home_dir(int clearFlag) {
 		free(home_dir);
 		home_dir = 0;
 		return 0;
-	}
+	}/*
 	if (home_dir)
 		return home_dir;
 
@@ -2328,6 +2328,7 @@ static char *find_home_dir(int clearFlag) {
 	}
 
 	return home_dir;
+	*/
 }
 
 /*
@@ -2409,7 +2410,7 @@ static void process_rc(ShellState *p,                /* Configuration data */
 	char *zBuf = 0;
 	FILE *in = NULL;
 
-	if (sqliterc == NULL) {
+	if (0 && sqliterc == NULL) {
 		home_dir = find_home_dir(0);
 		if (home_dir == 0) {
 			raw_printf(stderr, "-- warning: cannot find home directory;"
@@ -2420,7 +2421,7 @@ static void process_rc(ShellState *p,                /* Configuration data */
 		zBuf = sqlite3_mprintf("%s/.duckdbrc", home_dir);
 		sqliterc = zBuf;
 	}
-	in = fopen(sqliterc, "rb");
+	//in = fopen(sqliterc, "rb");
 	if (in) {
 		if (stdin_is_interactive) {
 			utf8_printf(stderr, "-- Loading resources from %s\n", sqliterc);
@@ -2454,7 +2455,7 @@ int main(int argc, char **argv) {
 	/* Make sure we have a valid signal handler early, before anything
 	 ** else is done.
 	 */
-	signal(SIGINT, interrupt_handler);
+	//signal(SIGINT, interrupt_handler);
 
 	/* Do an initial pass through the command-line argument to locate
 	 ** the name of the database file, the name of the initialization file,
@@ -2632,13 +2633,13 @@ int main(int argc, char **argv) {
 				printf("Connected to a ");
 				printBold("transient in-memory database. \n");
 			}
-			zHome = find_home_dir(0);
+			/*zHome = find_home_dir(0);
 			if (zHome) {
 				nHistory = strlen30(zHome) + 20;
 				if ((zHistory = malloc(nHistory)) != 0) {
 					sqlite3_snprintf(nHistory, zHistory, "%s/.duckdb_history", zHome);
 				}
-			}
+			}*/
 			if (zHistory) {
 				shell_read_history(zHistory);
 			}

@@ -2,9 +2,11 @@
 
 #include <ctype.h>
 #include <duckdb.h>
-#include <err.h>
+//#include <err.h>
 #include <stdio.h>
 #include <string.h>
+
+
 
 // TODO:
 #define SOURCE_ID __DATE__ " "__TIME__
@@ -49,7 +51,7 @@ int sqlite3_open(const char *filename, /* Database filename (UTF-8) */
 
 	sqlite3 *pDb;
 	if ((pDb = malloc(sizeof(sqlite3))) == NULL)
-		err(1, NULL);
+		exit(1);
 
 	pDb->pDuckDB = database_ptr;
 	pDb->pCon = connection_ptr;
@@ -69,7 +71,7 @@ int sqlite3_prepare_v2(sqlite3 *db,           /* Database handle */
 ) {
 	sqlite3_stmt *pStmt = malloc(sizeof(sqlite3_stmt));
 	if (pStmt == NULL)
-		err(1, NULL);
+		exit(1);
 
 	size_t size = 1;
 
@@ -82,7 +84,7 @@ int sqlite3_prepare_v2(sqlite3 *db,           /* Database handle */
 	}
 
 	if ((pStmt->zSql = malloc(size)) == NULL)
-		err(1, NULL);
+		exit(1);
 
 	/* Init sql statement */
 	pStmt->zSql[size - 1] = '\0';
@@ -304,7 +306,7 @@ char *sqlite3_mprintf(const char *fmt, ...) {
 	size_t str_size = strlen(fmt) + 50;
 	char *res = malloc(str_size);
 	if (res == NULL)
-		err(1, NULL);
+		exit(1);
 
 	va_list valist;
 	va_start(valist, fmt);
