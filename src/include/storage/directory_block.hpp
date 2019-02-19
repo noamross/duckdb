@@ -9,6 +9,10 @@
 #pragma once
 
 #include "common/common.hpp"
+#include "common/types/data_chunk.hpp"
+#include "common/types/null_value.hpp"
+#include "common/types/vector.hpp"
+#include "common/vector_operations/vector_operations.hpp"
 #include "storage/block.hpp"
 
 namespace duckdb {
@@ -24,7 +28,9 @@ public:
 	//! Reads the whole block(file) and loads it to the given buffer
 	size_t Read(char *buffer) override;
 	//! Reads the determined chunk of data(length) starting from the offset and loads it to the buffer
-	void Read(char *buffer, size_t offset, size_t length) override;
+	void Read(char *buffer, size_t offset, size_t buffered_size) override;
+
+	bool HasNoSpace(DataChunk &chunk) override;
 
 private:
 	const string path;

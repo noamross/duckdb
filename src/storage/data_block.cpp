@@ -51,13 +51,15 @@ bool DataBlock::HasSpace(size_t offset, size_t chunk_size) {
 
 void DataBlock::FlushToDisk(string &path_to_file, size_t block_id) {
 	auto block_name = JoinPath(path_to_file, to_string(block_id) + ".duck");
-	auto block_file = FstreamUtil::OpenFile(block_name, ios_base::binary | ios_base::out);
+	fstream block_file;
+	FstreamUtil::OpenFile(block_name, block_file, ios_base::binary | ios_base::out);
 	block_file.write((char *)data_buffer.get(), offset);
 	FstreamUtil::CloseFile(block_file);
 }
 
 void DataBlock::ReadFromDisk(string &path_to_file) {
-	auto block_file = FstreamUtil::OpenFile(path_to_file, ios_base::binary | ios_base::out);
+	fstream block_file;
+	FstreamUtil::OpenFile(path_to_file, block_file, ios_base::binary | ios_base::out);
 	block_file.seekg(0, ios::beg);
 	offset = sizeof(DataBlockHeader);
 	block_file.read((char *)&header, offset);

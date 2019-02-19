@@ -35,7 +35,7 @@ struct DataBlockHeader {
 	size_t data_size;
 	//! Amount of tuples within the block
 	size_t amount_of_tuples;
-	//! size of tuples stored in this block in bytes
+	//! size of(bytes) tuples stored in this block
 	size_t tuple_size;
 	//! The offset for each column data
 	vector<size_t> data_offset;
@@ -43,7 +43,7 @@ struct DataBlockHeader {
 
 //! The DataBlock is the physical unit to store data. It has a physical block which is stored in a file with multiple
 //! blocks
-class DataBlock : public Block {
+class DataBlock {
 public:
 	//! This class constructs the Data Block
 	class Builder;
@@ -54,8 +54,7 @@ private:
 	unique_ptr<char[]> data_buffer;
 
 	//! Only one simple constructor - rest is handled by Builder
-	DataBlock(const DataBlockHeader created_header)
-	    : Block(created_header.block_id), header(created_header), offset(sizeof(DataBlockHeader)){};
+	DataBlock(const DataBlockHeader created_header) : header(created_header), offset(sizeof(DataBlockHeader)){};
 
 public:
 	block_id_t GetId() const {
@@ -68,6 +67,7 @@ public:
 	void FlushToDisk(string &path_to_file, size_t block_id);
 	void ReadFromDisk(string &path_to_file);
 	bool HasSpace(size_t offset, size_t chunk_size);
+
 	bool is_full = false;
 	size_t offset;
 };
