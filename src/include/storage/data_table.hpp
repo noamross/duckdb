@@ -10,6 +10,7 @@
 
 #include "common/types/data_chunk.hpp"
 #include "common/types/tuple.hpp"
+#include "storage/block.hpp"
 #include "storage/column_statistics.hpp"
 #include "storage/index.hpp"
 #include "storage/storage_chunk.hpp"
@@ -32,6 +33,13 @@ struct VersionInformation;
 struct ScanStructure {
 	StorageChunk *chunk;
 	size_t offset;
+	VersionInformation *version_chain;
+};
+
+//! This is a structure to keep the location(Block) of a determined row in memory.
+struct BlockEntry {
+	uint64_t row_offset;
+	unique_ptr<Block> block;
 	VersionInformation *version_chain;
 };
 
@@ -101,6 +109,9 @@ public:
 
 	//! Indexes
 	vector<unique_ptr<Index>> indexes;
+
+	//! Maps row offsets to blocks
+	vector<BlockEntry> data_blocks;
 
 private:
 	//! Retrieves versioned data from a set of pointers to tuples inside an

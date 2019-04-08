@@ -40,6 +40,7 @@ public:
 	}
 
 	void AppendDataToBlock(DataChunk &chunk, unique_ptr<Block> &block, MetaBlockWriter &meta_writer) override;
+	void LoadTableData(DataTable &table, DataChunk &chunk, unique_ptr<Block> block) override;
 
 private:
 	//! The directory where blocks are stored

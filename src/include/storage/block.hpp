@@ -40,7 +40,21 @@ public:
 
 	virtual bool HasNoSpace(DataChunk &chunk) = 0;
 
+	template <class T> T Read(uint32_t offset) {
+		T element;
+		Read((char *)&element, offset, sizeof(T));
+		return element;
+	}
+	string ReadString(uint32_t offset) {
+		uint32_t size = Read<uint32_t>(offset);
+		char buffer[size + 1];
+		buffer[size + 1] = '\0';
+		Read(buffer, offset, size);
+		return string(buffer, size);
+	}
+
 	block_id_t id{0};
 	size_t offset{0};
+	size_t tuple_count{0};
 };
 } // namespace duckdb

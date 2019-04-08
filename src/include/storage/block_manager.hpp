@@ -12,6 +12,7 @@
 #include "common/fstream_util.hpp"
 #include "storage/block.hpp"
 #include "storage/data_table.hpp"
+#include "storage/meta_block_reader.hpp"
 
 namespace duckdb {
 struct MetaBlockWriter;
@@ -29,6 +30,8 @@ public:
 	virtual void Flush(unique_ptr<Block> &block) = 0;
 	//! Appends the data chunk to a block
 	virtual void AppendDataToBlock(DataChunk &chunk, unique_ptr<Block> &block, MetaBlockWriter &meta_writer) = 0;
+	//! Loads the table info and data to memory
+	virtual void LoadTableData(DataTable &table, DataChunk &chunk, unique_ptr<Block> block) = 0;
 	//! Returns the id of the first data block
 	virtual block_id_t GetMetadataBlockId() = 0;
 	//! Sets the id of the first data block

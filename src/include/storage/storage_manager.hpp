@@ -12,7 +12,7 @@
 #include "storage/data_block.hpp"
 #include "storage/data_table.hpp"
 #include "storage/directory_block_manager.hpp"
-#include "storage/meta_block.hpp"
+#include "storage/meta_block_writer.hpp"
 #include "storage/write_ahead_log.hpp"
 
 namespace duckdb {
@@ -44,7 +44,6 @@ private:
 	int LoadFromStorage();
 	//! Checkpoint the current state of the WAL and flush it to the main storage. This should be called BEFORE any
 	//! connection is available because right now the checkpointing cannot be done online. (TODO)
-	// void CreateCheckpoint(int iteration);
 	void CreateCheckpoint();
 	void LoadCheckpoint();
 	//! Creates and stores the data blocks for physical storage
@@ -57,8 +56,6 @@ private:
 	DuckDB &database;
 	//! The WriteAheadLog of the storage manager
 	WriteAheadLog wal;
-	//! Maps row offsets to blocks TODO: We are gonna move this to the buffer manager or storage chunk or data table
-	vector<BlockEntry> rows_to_block;
 };
 
 } // namespace duckdb
